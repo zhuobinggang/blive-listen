@@ -4,6 +4,7 @@ import random
 
 import blivedm
 from taku import say
+import datetime
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -68,13 +69,16 @@ class MyHandler(blivedm.BaseHandler):
     # _CMD_CALLBACK_DICT['INTERACT_WORD'] = __interact_word_callback  # noqa
 
     async def _on_heartbeat(self, client: blivedm.BLiveClient, message: blivedm.HeartbeatMessage):
-        print(f'[{client.room_id}] 当前人气值：{message.popularity}')
+        #print(f'[{client.room_id}] 当前人气值：{message.popularity}')
+        pass
 
     async def _on_danmaku(self, client: blivedm.BLiveClient, message: blivedm.DanmakuMessage):
-        say('Fuck you!')
-        print(f'[{client.room_id}] {message.uname}：{message.msg}')
+        say('way way way taku!')
+        now = datetime.datetime.now()
+        print(f'[{now.hour}:{now.minute}:{now.second}] {message.uname}：{message.msg}')
 
     async def _on_gift(self, client: blivedm.BLiveClient, message: blivedm.GiftMessage):
+        say('Thank you!')
         print(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
               f' （{message.coin_type}瓜子x{message.total_coin}）')
 
