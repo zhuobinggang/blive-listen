@@ -3,17 +3,19 @@ import asyncio
 import random
 
 import blivedm
-from taku import say
+from taku import say, cyan, magenta, red
 import datetime
+from gpt4all import send
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
     24441964
 ]
 
+help_message = f'普通的命令格式: taku + 空格 + 你想说的话\n比如说: taku 今晚吃什么?\n更长的命令分多段输入，首先输入"记录"，进入记录模式，最后输入"结束"即可发起询问。比如:\n记录\n在白雪公主和七个小矮人\n的故事中，为什么白雪公主会被\n皇后追杀？\n结束\n'
 
 async def main():
-    await run_single_client()
+    # await run_single_client()
     await run_multi_clients()
 
 
@@ -59,6 +61,15 @@ async def run_multi_clients():
 
 
 class MyHandler(blivedm.BaseHandler):
+    def __init__(self):
+        super().__init__()
+        self.message_dict = {}
+
+    def append_msg(self, uname, msg):
+        if uname not in self.message_dict:
+            self.message_dict[uname] = []
+        self.message_dict[uname].append(msg)
+
     # # 演示如何添加自定义回调
     # _CMD_CALLBACK_DICT = blivedm.BaseHandler._CMD_CALLBACK_DICT.copy()
     #
@@ -72,17 +83,67 @@ class MyHandler(blivedm.BaseHandler):
         #print(f'[{client.room_id}] 当前人气值：{message.popularity}')
         pass
 
+    def record_start(self, uname):
+        cyan('taku: 开始记录弹幕片段以组合成完整请求...结束并提问请输入"结束"')
+        self.message_dict[uname] = {'is_recording': True, 'lst': []}
+
+    def record_end(self, uname):
+        if uname not in self.message_dict or len(self.message_dict[uname]['lst']) == 0:
+            red('B话都没说，结束你🏇呢?')
+        else:
+            self.message_dict[uname]['is_recording'] = False
+            request_text = ''.join(self.message_dict[uname]['lst'])
+            cyan(f'{uname}: {request_text} \n生成中...')
+            response_txt = send(request_text, trans=True)
+            cyan(f'taku: {response_txt}')
+            say(response_txt)
+
+    def record_list(self, uname):
+        if uname in self.message_dict or len(self.message_dict[uname]['lst']) > 0:
+            magenta(self.message_dict[uname]['lst'])
+        else:
+            red('B话都没说，列出你🏇呢?')
+
+    def maybe_record(self, uname, msg):
+        if uname in self.message_dict and self.message_dict[uname]['is_recording']:
+            if msg == '记录':
+                pass
+            else:
+                self.message_dict[uname]['lst'].append(msg)
+
     async def _on_danmaku(self, client: blivedm.BLiveClient, message: blivedm.DanmakuMessage):
-        say('way way way taku!')
+        say('猪头!')
         now = datetime.datetime.now()
+        uname = message.uname
         print(f'[{now.hour}:{now.minute}:{now.second}] {message.uname}：{message.msg}')
+        # TODO: 通过弹幕控制 gpt4all
+        maybe_command_and_message = message.msg.split(' ')
+        head = maybe_command_and_message[0]
+        if len(maybe_command_and_message) > 1: # 用空格隔开的情况
+            prompt = ' '.join(maybe_command_and_message[1:])
+            if head in ['taku', '提问']:
+                cyan('生成中...')
+                response_txt = send(prompt, trans=True)
+                cyan(f'taku: {response_txt}\n')
+                say(response_txt)
+        else:
+            if head == '记录':
+                self.record_start(uname)
+            elif head == '结束':
+                self.record_end(uname)
+            elif head == '列出':
+                self.record_list(uname)
+            elif head == '帮助':
+                magenta(help_message)
+        self.maybe_record(uname, message.msg)
 
     async def _on_gift(self, client: blivedm.BLiveClient, message: blivedm.GiftMessage):
-        say('Thank you!')
+        say('谢谢礼物!')
         print(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
-              f' （{message.coin_type}瓜子x{message.total_coin}）')
+             f' （{message.coin_type}瓜子x{message.total_coin}）')
 
     async def _on_buy_guard(self, client: blivedm.BLiveClient, message: blivedm.GuardBuyMessage):
+        say('谢谢礼物!')
         print(f'[{client.room_id}] {message.username} 购买{message.gift_name}')
 
     async def _on_super_chat(self, client: blivedm.BLiveClient, message: blivedm.SuperChatMessage):
