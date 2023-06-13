@@ -64,6 +64,18 @@ class MyHandler(blivedm.BaseHandler):
     def __init__(self):
         super().__init__()
         self.message_dict = {}
+        self.history = []
+
+    def history_print(self):
+        for time,uname,msg in self.history[-20:]:
+            magenta(f'[{time}]{uname}:{msg}')
+
+    def write_history(self):
+        f = open('./history.txt','w+')
+        for time,uname,msg in self.history:
+            f.write(f'[{time}]{uname}:{msg}\n')
+        f.close()
+        magenta(f'记录结束')
 
     def append_msg(self, uname, msg):
         if uname not in self.message_dict:
@@ -112,10 +124,13 @@ class MyHandler(blivedm.BaseHandler):
                 self.message_dict[uname]['lst'].append(msg)
 
     async def _on_danmaku(self, client: blivedm.BLiveClient, message: blivedm.DanmakuMessage):
-        say('猪头!')
         now = datetime.datetime.now()
+        time = f'{now.hour}:{now.minute}:{now.second}'
         uname = message.uname
-        print(f'[{now.hour}:{now.minute}:{now.second}] {message.uname}：{message.msg}')
+        msg = message.msg
+        self.history.append((time,uname,msg))
+        print(f'[{time}]{uname}:{msg}')
+        say(message.msg)
         # TODO: 通过弹幕控制 gpt4all
         maybe_command_and_message = message.msg.split(' ')
         head = maybe_command_and_message[0]
@@ -135,6 +150,10 @@ class MyHandler(blivedm.BaseHandler):
                 self.record_list(uname)
             elif head == '帮助':
                 magenta(help_message)
+            elif head == '历史':
+                self.history_print()
+            elif head == '保存':
+                self.write_history()
         self.maybe_record(uname, message.msg)
 
     async def _on_gift(self, client: blivedm.BLiveClient, message: blivedm.GiftMessage):
