@@ -4,7 +4,7 @@ import random
 
 import blivedm
 from taku import say, cyan, magenta, red, get_time_text
-from gpt4all import send
+from gpt4all import send, send_dialogues
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -64,6 +64,8 @@ class MyHandler(blivedm.BaseHandler):
         super().__init__()
         self.message_dict = {}
         self.history = []
+        self.style = 'rwkv'
+        self.dialogue_hist = {}
 
     def history_print(self):
         for time,uname,msg in self.history[-20:]:
@@ -71,11 +73,19 @@ class MyHandler(blivedm.BaseHandler):
 
     def write_history(self):
         time = get_time_text(need_date = True)
-        f = open('./log/{time}.hist','w+')
+        f = open(f'./log/{time}.hist','w+')
         for time,uname,msg in self.history:
             f.write(f'[{time}]{uname}:{msg}\n')
-        f.close()
         magenta(f'记录结束')
+        f.close()
+        if self.style == 'rwkv':
+            f = open(f'./log/{time}.dialogue.hist','w+')
+            for uname in self.dialogue_hist:
+                f.write(f'## {uname}\n')
+                for question, answer in self.dialogue_hist[uname]:
+                    f.write(f'{question}: {answer}\n')
+            f.close()
+            magenta(f'对话记录结束')
 
     def append_msg(self, uname, msg):
         if uname not in self.message_dict:
@@ -96,7 +106,7 @@ class MyHandler(blivedm.BaseHandler):
         pass
 
     def record_start(self, uname):
-        cyan('taku: 开始记录弹幕片段以组合成完整请求...结束并提问请输入"结束"')
+        cyan('{self.prefix()}: 开始记录弹幕片段以组合成完整请求...结束并提问请输入"结束"')
         self.message_dict[uname] = {'is_recording': True, 'lst': []}
 
     def record_end(self, uname):
@@ -106,8 +116,8 @@ class MyHandler(blivedm.BaseHandler):
             self.message_dict[uname]['is_recording'] = False
             request_text = ''.join(self.message_dict[uname]['lst'])
             cyan(f'{uname}: {request_text} \n生成中...')
-            response_txt, _ = self.ask(request_text)
-            cyan(f'taku: {response_txt}\n')
+            response_txt = self.ask(request_text, uname)
+            cyan(f'{self.prefix()}: {response_txt}\n')
             say(response_txt)
 
     def record_list(self, uname):
@@ -123,9 +133,27 @@ class MyHandler(blivedm.BaseHandler):
             else:
                 self.message_dict[uname]['lst'].append(msg)
 
-    def ask(self, prompt):
-        response_txt, translated_prompt = send(prompt, trans=True, trans_prompt=True)
-        return response_txt, translated_prompt
+    def ask(self, prompt, uname = None):
+        if self.style == 'rwkv':
+            if uname: 
+                if uname not in self.dialogue_hist:
+                    self.dialogue_hist[uname] = []
+                # print(self.dialogue_hist[uname])
+                dialogues = self.dialogue_hist[uname][-3:]
+                response_txt = send_dialogues(prompt, dialogues)
+                self.dialogue_hist[uname].append((prompt, response_txt))
+            else:
+                response_txt = send(prompt, rwkv = True)
+        else:
+            response_txt, translated_prompt = send(prompt, trans=True, trans_prompt=True)
+        return response_txt
+
+
+    def prefix(self):
+        if self.style == 'rwkv':
+            return '升级版taku'
+        else:
+            return 'taku'
 
     async def _on_danmaku(self, client: blivedm.BLiveClient, message: blivedm.DanmakuMessage):
         uname = message.uname
@@ -141,8 +169,8 @@ class MyHandler(blivedm.BaseHandler):
             prompt = ' '.join(maybe_command_and_message[1:])
             if head in ['taku', '提问']:
                 cyan('思考中...')
-                response_txt, _ = self.ask(prompt)
-                cyan(f'taku: {response_txt}\n')
+                response_txt = self.ask(prompt, uname)
+                cyan(f'{self.prefix()}: {response_txt}\n')
                 say(response_txt)
         else:
             if head == '记录':
@@ -158,6 +186,14 @@ class MyHandler(blivedm.BaseHandler):
             elif head == '保存':
                 self.write_history()
         self.maybe_record(uname, message.msg)
+        # 判断是我的情况
+        if uname == 'taku的交错电台':
+            if head == '切换模型':
+                if self.style == 'gpt4all':
+                    self.style = 'rwkv'
+                else:
+                    self.style = 'gpt4all'
+                red(f'切换模型(只对taku的命令生效): {self.style}')
 
     async def _on_gift(self, client: blivedm.BLiveClient, message: blivedm.GiftMessage):
         say('谢谢礼物!')

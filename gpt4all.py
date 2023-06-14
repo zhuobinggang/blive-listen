@@ -2,7 +2,8 @@ import openai
 from googletrans import Translator
 from functools import lru_cache
 
-openai.api_base = "http://localhost:4891/v1"
+# openai.api_base = "http://localhost:4891/v1"
+openai.api_base = "http://localhost:8000"
 openai.api_key = "not needed for a local LLM"
 
 @lru_cache(maxsize=None)
@@ -13,8 +14,10 @@ def get_translator():
 # model = "gpt-3.5-turbo"
 # model = "mpt-7b-chat"
 # model = "gpt4all-j-v1.3-groovy"
-model = 'gpt4all-l13b-snoozy' # 已经下载了
+# model = 'gpt4all-l13b-snoozy' # 已经下载了
 # model = 'mpt-7b-chat' # 已经下载了
+model_gpt4all = 'gpt4all-l13b-snoozy' # 已经下载了
+model_rwkv = 'RWKV-4-Raven-7B-v12-Eng49%-Chn49%-Jpn1%-Other1%-20230530-ctx8192.pth'
 
 # NOTE: 首先要启动gpt4all客户端, 然后进入server模式
 
@@ -24,14 +27,58 @@ def is_contains_chinese(strs):
             return True
     return False
 
-def send(prompt, trans = False, trans_prompt = False):
+
+def send_rwkv_chat(prompt):
+    return send_rwkv_chat_dialogue(prompt, dialogues = [])
+
+def send_dialogues(prompt, dialogues):
+    return send_rwkv_chat_dialogue(prompt, dialogues)
+
+def send_rwkv_chat_dialogue(prompt, dialogues = []):
+    messages = [{"role": "system", "content": "You are a helpful assistant."}]
+    for question, answer in dialogues:
+        messages.append({"role": 'user', "content": question})
+        messages.append({"role": 'assistant', "content": answer})
+    messages.append({"role": 'user', "content": prompt})
+    # print(messages)
+    response = openai.ChatCompletion.create(
+        model=model_rwkv,
+        messages=messages,
+    )
+    return response['response']
+
+def send_rwkv(prompt):
+    response = openai.Completion.create(
+        model=model_rwkv,
+        prompt=f'用户: {prompt}\n助手: ',
+        max_tokens=200,
+        temperature=0.5,
+        top_p=0.95,
+        n=1,
+        echo=True,
+        stream=False
+    )
+    response_text = response['choices'][0]['text']
+    return response_text
+
+
+def send(prompt, trans = False, trans_prompt = False, rwkv = False):
+    if not rwkv:
+        return send_gpt4all(prompt, trans, trans_prompt)
+    else:
+        if isinstance(s, prompt):
+            return send_rwkv_chat(prompt)
+        else:
+            return send_rwkv_chat_dialogue(prompt)
+
+def send_gpt4all(prompt, trans = False, trans_prompt = False):
     org_prompt = prompt
     if trans_prompt and not org_prompt.isascii():
         prompt = get_translator().translate(prompt).text
         print(f'taku把你说的话翻成了英文，说谢谢taku: {prompt}')
     # Make the API request
     response = openai.Completion.create(
-        model=model,
+        model=model_gpt4all,
         prompt=prompt,
         max_tokens=200,
         temperature=0.5,
