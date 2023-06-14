@@ -28,7 +28,7 @@ def send(prompt, trans = False, trans_prompt = False):
     org_prompt = prompt
     if trans_prompt and not org_prompt.isascii():
         prompt = get_translator().translate(prompt).text
-        print(f'翻译结果: {prompt}')
+        print(f'taku把你说的话翻成了英文，说谢谢taku: {prompt}')
     # Make the API request
     response = openai.Completion.create(
         model=model,
