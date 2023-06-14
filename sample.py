@@ -3,8 +3,7 @@ import asyncio
 import random
 
 import blivedm
-from taku import say, cyan, magenta, red
-import datetime
+from taku import say, cyan, magenta, red, get_time_text
 from gpt4all import send
 
 # 直播间ID的取值看直播间URL
@@ -71,7 +70,8 @@ class MyHandler(blivedm.BaseHandler):
             magenta(f'[{time}]{uname}:{msg}')
 
     def write_history(self):
-        f = open('./history.txt','w+')
+        time = get_time_text(need_date = True)
+        f = open('./log/{time}.hist','w+')
         for time,uname,msg in self.history:
             f.write(f'[{time}]{uname}:{msg}\n')
         f.close()
@@ -106,8 +106,8 @@ class MyHandler(blivedm.BaseHandler):
             self.message_dict[uname]['is_recording'] = False
             request_text = ''.join(self.message_dict[uname]['lst'])
             cyan(f'{uname}: {request_text} \n生成中...')
-            response_txt = send(request_text, trans=True)
-            cyan(f'taku: {response_txt}')
+            response_txt, _ = self.ask(request_text)
+            cyan(f'taku: {response_txt}\n')
             say(response_txt)
 
     def record_list(self, uname):
@@ -123,22 +123,25 @@ class MyHandler(blivedm.BaseHandler):
             else:
                 self.message_dict[uname]['lst'].append(msg)
 
+    def ask(self, prompt):
+        response_txt, translated_prompt = send(prompt, trans=True, trans_prompt=True)
+        return response_txt, translated_prompt
+
     async def _on_danmaku(self, client: blivedm.BLiveClient, message: blivedm.DanmakuMessage):
-        now = datetime.datetime.now()
-        time = f'{now.hour}:{now.minute}:{now.second}'
         uname = message.uname
         msg = message.msg
+        time = get_time_text(':')
         self.history.append((time,uname,msg))
         print(f'[{time}]{uname}:{msg}')
         say(message.msg)
-        # TODO: 通过弹幕控制 gpt4all
+        # 通过弹幕控制 gpt4all
         maybe_command_and_message = message.msg.split(' ')
         head = maybe_command_and_message[0]
         if len(maybe_command_and_message) > 1: # 用空格隔开的情况
             prompt = ' '.join(maybe_command_and_message[1:])
             if head in ['taku', '提问']:
-                cyan('生成中...')
-                response_txt = send(prompt, trans=True)
+                cyan('思考中...')
+                response_txt, _ = self.ask(prompt)
                 cyan(f'taku: {response_txt}\n')
                 say(response_txt)
         else:

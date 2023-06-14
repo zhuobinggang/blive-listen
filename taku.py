@@ -1,6 +1,16 @@
 import pyttsx3
 engine = pyttsx3.init()
 engine.setProperty('voice','zh')
+import datetime
+
+def get_time_text(charater = '_', need_date = False):
+    now = datetime.datetime.now()
+    if need_date:
+        time = f'{now.year}{charater}{now.month}{charater}{now.day}{charater}{now.hour}{charater}{now.minute}{charater}{now.second}'
+    else:
+        time = f'{now.hour}{charater}{now.minute}{charater}{now.second}'
+    return time
+
 
 def say(text):
     engine.say(text)
