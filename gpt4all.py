@@ -18,6 +18,11 @@ def get_translator():
 # model = 'mpt-7b-chat' # 已经下载了
 model_gpt4all = 'gpt4all-l13b-snoozy' # 已经下载了
 model_rwkv = 'RWKV-4-Raven-7B-v12-Eng49%-Chn49%-Jpn1%-Other1%-20230530-ctx8192.pth'
+MODELS = [
+    'gpt4all-l13b-snoozy',
+    'RWKV-4-Raven-7B-v12-Eng49%-Chn49%-Jpn1%-Other1%-20230530-ctx8192.pth',
+    'RWKV-4-Raven-3B-v12-Eng49%-Chn49%-Jpn1%-Other1%-20230527-ctx4096.pth',
+]
 
 # NOTE: 首先要启动gpt4all客户端, 然后进入server模式
 
@@ -27,18 +32,14 @@ def is_contains_chinese(strs):
             return True
     return False
 
-
-def send_rwkv_chat(prompt):
-    return send_rwkv_chat_dialogue(prompt, dialogues = [])
-
-def send_dialogues(prompt, dialogues):
-    return send_rwkv_chat_dialogue(prompt, dialogues)
-
-def send_rwkv_chat_dialogue(prompt, dialogues = []):
+def send_rwkv_chat_dialogue(prompt, dialogues = [], small = True):
     messages = [{"role": "system", "content": "You are a helpful assistant."}]
     for question, answer in dialogues:
         messages.append({"role": 'user', "content": question})
-        messages.append({"role": 'assistant', "content": answer})
+        trimed_answer = (answer[:60] + '...') if len(answer) > 60 else answer
+        if len(answer) > 60:
+            print(trimed_answer)
+        messages.append({"role": 'assistant', "content": trimed_answer})
     messages.append({"role": 'user', "content": prompt})
     # print(messages)
     response = openai.ChatCompletion.create(

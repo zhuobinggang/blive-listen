@@ -3,8 +3,8 @@ import asyncio
 import random
 
 import blivedm
-from taku import say, cyan, magenta, red, get_time_text
-from gpt4all import send, send_dialogues
+from taku import say, cyan, magenta, red, get_time_text, yellow
+from gpt4all import send, send_rwkv_chat_dialogue, MODELS
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -64,7 +64,7 @@ class MyHandler(blivedm.BaseHandler):
         super().__init__()
         self.message_dict = {}
         self.history = []
-        self.style = 'rwkv'
+        self.model_index = 2
         self.dialogue_hist = {}
 
     def history_print(self):
@@ -72,17 +72,18 @@ class MyHandler(blivedm.BaseHandler):
             magenta(f'[{time}]{uname}:{msg}')
 
     def write_history(self):
-        time = get_time_text(need_date = True)
-        f = open(f'./log/{time}.hist','w+')
+        time_txt = get_time_text(need_date = True)
+        f = open(f'./log/{time_txt}.hist','w+')
         for time,uname,msg in self.history:
             f.write(f'[{time}]{uname}:{msg}\n')
         magenta(f'记录结束')
         f.close()
-        if self.style == 'rwkv':
-            f = open(f'./log/{time}.dialogue.hist','w+')
+        if self.model_index in [1,2]:
+            f = open(f'./log/{time_txt}.dialogue.hist','w+')
             for uname in self.dialogue_hist:
                 f.write(f'## {uname}\n')
                 for question, answer in self.dialogue_hist[uname]:
+                    answer = answer.replace('\n', ' ')
                     f.write(f'{question}: {answer}\n')
             f.close()
             magenta(f'对话记录结束')
@@ -134,13 +135,14 @@ class MyHandler(blivedm.BaseHandler):
                 self.message_dict[uname]['lst'].append(msg)
 
     def ask(self, prompt, uname = None):
-        if self.style == 'rwkv':
+        if self.model_index in [1, 2]:
             if uname: 
                 if uname not in self.dialogue_hist:
                     self.dialogue_hist[uname] = []
                 # print(self.dialogue_hist[uname])
                 dialogues = self.dialogue_hist[uname][-3:]
-                response_txt = send_dialogues(prompt, dialogues)
+                small = True if self.model_index == 2 else False
+                response_txt = send_rwkv_chat_dialogue(prompt, dialogues, small = small)
                 self.dialogue_hist[uname].append((prompt, response_txt))
             else:
                 response_txt = send(prompt, rwkv = True)
@@ -150,10 +152,12 @@ class MyHandler(blivedm.BaseHandler):
 
 
     def prefix(self):
-        if self.style == 'rwkv':
-            return '升级版taku'
+        if self.model_index == 1:
+            return '升级完全版taku'
+        if self.model_index == 2:
+            return '升级但是余裕版taku'
         else:
-            return 'taku'
+            return '贫穷版taku'
 
     async def _on_danmaku(self, client: blivedm.BLiveClient, message: blivedm.DanmakuMessage):
         uname = message.uname
@@ -189,16 +193,15 @@ class MyHandler(blivedm.BaseHandler):
         # 判断是我的情况
         if uname == 'taku的交错电台':
             if head == '切换模型':
-                if self.style == 'gpt4all':
-                    self.style = 'rwkv'
-                else:
-                    self.style = 'gpt4all'
-                red(f'切换模型(只对taku的命令生效): {self.style}')
+                self.model_index = (self.model_index + 1) % 3
+                red(f'切换模型(只对taku的命令生效): {MODELS[self.model_index]}')
 
     async def _on_gift(self, client: blivedm.BLiveClient, message: blivedm.GiftMessage):
-        say('谢谢礼物!')
-        print(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
-             f' （{message.coin_type}瓜子x{message.total_coin}）')
+        text = f'谢谢{message.uname}赠送{message.num}个{message.gift_name}!'
+        yellow(text)
+        say(text)
+        # print(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
+        # f' （{message.coin_type}瓜子x{message.total_coin}）')
 
     async def _on_buy_guard(self, client: blivedm.BLiveClient, message: blivedm.GuardBuyMessage):
         say('谢谢礼物!')
