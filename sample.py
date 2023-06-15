@@ -200,6 +200,8 @@ class MyHandler(blivedm.BaseHandler):
                 self.history_print()
             elif head == '保存':
                 self.write_history()
+            elif head == '花花':
+                self.flower.show()
         self.maybe_record(uname, message.msg)
         # 判断是我的情况
         if uname == 'taku的交错电台':

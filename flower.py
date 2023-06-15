@@ -27,6 +27,13 @@ class Flower:
         txt = f'请问以下句子属于哪个分类?\n句子:{sentence}\n分类:{str(STATUS)}'  
         return txt
 
+
+    def show(self):
+        for key in self.data:
+            item = self.data[key]
+            power = item['power']
+            yellow(f'[{key}: {power}]')
+
     def save(self):
         time_txt = get_time_text(need_date = True)
         f = open(f'./log/{time_txt}.flower.hist','w+', encoding="utf-8")
