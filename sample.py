@@ -6,6 +6,8 @@ import blivedm
 from taku_utils import say, cyan, magenta, red, get_time_text, yellow
 # from gpt4all import send, send_rwkv_chat_dialogue, MODELS
 from taku_rwkv import send_rwkv_chat_dialogue, MODELS
+from flower import Flower
+import numpy as np
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -67,6 +69,8 @@ class MyHandler(blivedm.BaseHandler):
         self.history = []
         self.model_index = 2
         self.dialogue_hist = {}
+        # 花花
+        self.flower = Flower()
 
     def history_print(self):
         for time,uname,msg in self.history[-20:]:
@@ -74,13 +78,13 @@ class MyHandler(blivedm.BaseHandler):
 
     def write_history(self):
         time_txt = get_time_text(need_date = True)
-        f = open(f'./log/{time_txt}.hist','w+')
+        f = open(f'./log/{time_txt}.hist','w+', encoding="utf-8")
         for time,uname,msg in self.history:
             f.write(f'[{time}]{uname}:{msg}\n')
         magenta(f'记录结束')
         f.close()
         if self.model_index in [1,2]:
-            f = open(f'./log/{time_txt}.dialogue.hist','w+')
+            f = open(f'./log/{time_txt}.dialogue.hist','w+', encoding="utf-8")
             for uname in self.dialogue_hist:
                 f.write(f'## {uname}\n')
                 for question, answer in self.dialogue_hist[uname]:
@@ -88,24 +92,28 @@ class MyHandler(blivedm.BaseHandler):
                     f.write(f'{question}: {answer}\n')
             f.close()
             magenta(f'对话记录结束')
+        if self.flower is not None:
+            self.flower.save()
 
     def append_msg(self, uname, msg):
         if uname not in self.message_dict:
             self.message_dict[uname] = []
         self.message_dict[uname].append(msg)
 
-    # # 演示如何添加自定义回调
-    # _CMD_CALLBACK_DICT = blivedm.BaseHandler._CMD_CALLBACK_DICT.copy()
-    #
-    # # 入场消息回调
-    # async def __interact_word_callback(self, client: blivedm.BLiveClient, command: dict):
-    #     print(f"[{client.room_id}] INTERACT_WORD: self_type={type(self).__name__}, room_id={client.room_id},"
-    #           f" uname={command['data']['uname']}")
-    # _CMD_CALLBACK_DICT['INTERACT_WORD'] = __interact_word_callback  # noqa
+    def get_random_sentence_and_uname(self):
+        if len(self.history) > 0:
+            random_idx = np.random.randint(len(self.history))
+            time,uname,msg = self.history[random_idx]
+            return msg, uname
+        else:
+            return '什么都没有', '虚空'
+
 
     async def _on_heartbeat(self, client: blivedm.BLiveClient, message: blivedm.HeartbeatMessage):
         #print(f'[{client.room_id}] 当前人气值：{message.popularity}')
-        pass
+        if self.flower.need_water():
+            msg, uname = self.get_random_sentence_and_uname()
+            self.flower.water(msg, uname)
 
     def record_start(self, uname):
         cyan('{self.prefix()}: 开始记录弹幕片段以组合成完整请求...结束并提问请输入"结束"')

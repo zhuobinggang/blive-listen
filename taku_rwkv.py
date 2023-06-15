@@ -7,7 +7,8 @@ MODELS = [
     'RWKV-4-Raven-3B-v12-Eng49%-Chn49%-Jpn1%-Other1%-20230527-ctx4096.pth',
 ]
 
-def send_rwkv_chat_dialogue(prompt, dialogues, small = None):
+def send_rwkv_chat_dialogue(prompt, dialogues = [], small = None):
     request = get_chinese_prompt(prompt, dialogues)
+    # print(request)
     return send(request)
 
