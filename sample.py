@@ -3,8 +3,9 @@ import asyncio
 import random
 
 import blivedm
-from taku import say, cyan, magenta, red, get_time_text, yellow
-from gpt4all import send, send_rwkv_chat_dialogue, MODELS
+from taku_utils import say, cyan, magenta, red, get_time_text, yellow
+# from gpt4all import send, send_rwkv_chat_dialogue, MODELS
+from taku_rwkv import send_rwkv_chat_dialogue, MODELS
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -145,9 +146,11 @@ class MyHandler(blivedm.BaseHandler):
                 response_txt = send_rwkv_chat_dialogue(prompt, dialogues, small = small)
                 self.dialogue_hist[uname].append((prompt, response_txt))
             else:
-                response_txt = send(prompt, rwkv = True)
+                print('已不再支持')
+                # response_txt = send(prompt, rwkv = True)
         else:
-            response_txt, translated_prompt = send(prompt, trans=True, trans_prompt=True)
+            print('已不再支持')
+            # response_txt, translated_prompt = send(prompt, trans=True, trans_prompt=True)
         return response_txt
 
 
