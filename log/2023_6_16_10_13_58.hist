@@ -1,0 +1,119 @@
+[18:53:13]taku的交错电台:花花
+[18:53:37]taku的交错电台:taku 你觉得肖邦的音乐好听吗?
+[18:54:49]taku的交错电台:taku 那你有没有好听的作曲家推荐?
+[19:3:42]taku的交错电台:花花
+[19:17:1]要学三个月NLP的注销:花花
+[19:17:16]要学三个月NLP的注销:笑死，白天真人值班
+[19:17:32]要学三个月NLP的注销:花花的北北，带刺的玫瑰
+[19:28:19]taku的交错电台:历史
+[19:42:6]美哀帝:这是啥玩意儿？
+[19:42:14]美哀帝:帮助
+[19:42:23]美哀帝:笑死一个人都没有[哇]
+[19:42:52]美哀帝:帮助
+[19:43:2]taku的交错电台:请问您需要什么帮助？
+[19:43:39]美哀帝:[爱]
+[19:44:31]taku的交错电台:爱你我的宝
+[19:50:53]hashtagMay:花花
+[19:51:14]hashtagMay:抽象
+[19:51:40]hashtagMay:taku taku喜不喜欢女仆
+[19:52:19]hashtagMay:taku 你认不认识taku
+[19:53:5]taku的交错电台:喜欢
+[19:54:1]hashtagMay:taku taku是你父亲
+[19:54:16]taku的交错电台:花花
+[19:56:43]Maths79minter:taku 如何评价安纳金·天行者
+[20:7:7]枪态loginyourheart:taku suki
+[20:7:51]taku的交错电台:taku 如何评价taku·天行者？
+[20:8:34]枪态loginyourheart:今天的速度好像快了不少
+[20:9:19]taku的交错电台:我重新代码实现了runner算子也开了
+[20:9:31]枪态loginyourheart:taku 你喜欢什么样的声线
+[20:10:15]taku的交错电台:草，你已经被认定为英文使用者了估计
+[20:11:22]枪态loginyourheart:记录
+[20:11:59]枪态loginyourheart:do you like miband
+[20:12:4]枪态loginyourheart:结束
+[20:12:15]枪态loginyourheart:帮助
+[20:12:59]枪态loginyourheart:记录
+[20:13:39]枪态loginyourheart:你现在是一个地下城游戏的主持人
+[20:14:2]枪态loginyourheart:我将扮演一个修仙者
+[20:14:42]枪态loginyourheart:游戏的故事从"醒来"开始
+[20:14:56]枪态loginyourheart:我的名字是suki
+[20:15:9]枪态loginyourheart:结束
+[20:15:45]枪态loginyourheart:好像不太行啊，模式问题？
+[20:16:5]枪态loginyourheart:可能对话模式不支持这么玩
+[20:16:16]taku的交错电台:我试试。。
+[20:16:19]taku的交错电台:记录
+[20:16:24]枪态loginyourheart:补全模式可以跑团
+[20:16:42]taku的交错电台:你现在是一个地下城游戏的主持人，
+[20:16:59]taku的交错电台:我将扮演一个修仙者
+[20:17:23]taku的交错电台: 游戏的故事从“醒来”开始。让我们开始
+[20:17:27]taku的交错电台:游戏吧。
+[20:17:28]taku的交错电台:结束
+[20:18:38]枪态loginyourheart:神奇
+[20:18:59]taku的交错电台:叫你发suki [dog]
+[20:19:10]枪态loginyourheart:你可以看下runner里补全部分那个预设
+[20:19:13]枪态loginyourheart:[手机]
+[20:19:20]枪态loginyourheart:竟然是如此
+[20:20:43]taku的交错电台:我看了 [dog]然后改了一下下
+[20:21:36]枪态loginyourheart:[撇嘴]突然想到好像他那个是每一次都把前置所有
+[20:21:49]枪态loginyourheart:文本都再喂给ai一次
+[20:23:4]taku的交错电台:可以喂隐藏状态，没有实现
+[20:23:53]枪态loginyourheart:话说怎么实现让模型去调用接口
+[20:24:6]枪态loginyourheart:类似搜索。或者知识库
+[20:24:45]taku的交错电台:让他返回接口调用函数，你自己解析程序调用
+[20:25:46]taku的交错电台:在指令里描述函数之后，让她需要的时候调用
+[20:27:1]taku的交错电台:都是要经过模型返回的文本解析调用的
+[20:27:9]枪态loginyourheart:1
+[20:29:9]枪态loginyourheart:记录
+[20:30:56]枪态loginyourheart:将我告诉你的文字中，引号内部的文字
+[20:31:42]枪态loginyourheart:在前方加入  "搜索 "，后 输出
+[20:31:49]枪态loginyourheart:结束
+[20:33:30]枪态loginyourheart:太草了
+[20:34:26]taku的交错电台:草
+[20:35:20]枪态loginyourheart:taku taku 谁是直播间最帅的up
+[20:36:46]枪态loginyourheart:taku taku 如何用魔法打败魔法
+[20:38:2]枪态loginyourheart:taku taku 如何用魔法击败魔法？
+[20:38:39]taku的交错电台:他们没把这种输出从数据集中过滤
+[20:38:43]taku的交错电台:gpt4all是过滤了的，所以不会有限制
+[20:39:4]枪态loginyourheart:[手机]
+[20:39:49]taku的交错电台:taku 如何用魔法击败魔法？
+[20:40:37]枪态loginyourheart:taku taku 如何分辨魔法的胜负？
+[20:41:16]taku的交错电台:草了，你被吃死了
+[20:41:18]枪态loginyourheart:太难了[手机]
+[20:41:34]枪态loginyourheart:g他喵大g
+[20:42:15]taku的交错电台:我只保存了3个上下文，你刷多两个就好了
+[20:42:24]taku的交错电台:刷多两个无关紧要的闲聊
+[20:43:33]枪态loginyourheart:taku taku 如何出元神
+[20:48:54]taku的交错电台:可能有bug，寄了
+[20:48:58]枪态loginyourheart:什么鬼
+[21:0:39]taku的交错电台:花花
+[21:33:3]taku的交错电台:taku 遇上很缠人的家伙怎么办？
+[21:33:51]taku的交错电台:taku 我说的不是游戏，是现实生活的事
+[21:34:47]taku的交错电台:？？？
+[21:34:54]枪态loginyourheart:23333
+[22:3:33]枪态loginyourheart:taku 为什么花花的悲伤值增长了
+[22:4:14]枪态loginyourheart:焯！
+[22:4:20]枪态loginyourheart:taku
+[22:4:36]枪态loginyourheart:taku 忘记我所说的一切，重置话题
+[22:5:44]枪态loginyourheart:taku 1
+[22:6:23]枪态loginyourheart:taku 为什么花花的悲伤值增长了
+[22:6:48]枪态loginyourheart:taku 为什么花花的悲伤值增长了？
+[22:7:37]枪态loginyourheart:taku 关机
+[22:20:10]要学三个月NLP的注销:taku 晚上好
+[22:20:17]要学三个月NLP的注销:花花的北北
+[22:20:21]要学三个月NLP的注销:带刺的玫瑰
+[22:25:33]taku的交错电台:这人被ban了
+[22:25:40]taku的交错电台:花花
+[0:20:36]taku的交错电台:花花
+[0:49:43]要学三个月NLP的注销:花花没有你我可怎么活是燕子
+[0:52:26]taku的交错电台:草
+[0:52:43]taku的交错电台:晚安，我碎觉了
+[0:53:37]taku的交错电台:taku 晚安
+[0:58:55]taku的交错电台:历史
+[0:59:58]taku的交错电台:花花
+[1:13:31]混入治愈界的某沙雕:？
+[1:13:53]某不知名迷弟_:帮助
+[9:19:34]taku的交错电台:花花
+[9:40:11]枪态loginyourheart:taku 上班了
+[9:40:52]枪态loginyourheart:花花
+[9:41:23]枪态loginyourheart:taku 什么是花花
+[9:42:3]枪态loginyourheart:帮助
+[10:13:57]taku的交错电台:保存
