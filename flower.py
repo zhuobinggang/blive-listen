@@ -5,7 +5,7 @@ from taku_utils import say, cyan, magenta, red, get_time_text, yellow
 from datetime import datetime
 
 class Flower:
-    def __init__(self, minute = 60):
+    def __init__(self, minute = 30):
         self.data = {}
         for state in (STATUS + [EXTRA]):
             self.data[state] = {
@@ -60,6 +60,8 @@ class Flower:
                 break
         if not is_inside:
             yellow(f'在{uname}说过的"{sentence}"的滋养下，花花的{EXTRA}值得到了成长!')
+            self.data[EXTRA]['sents'].append(sentence)
+            self.data[EXTRA]['power'] = self.data[state]['power'] + 1
         self.last_water_time = datetime.now()
 
 

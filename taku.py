@@ -6,5 +6,3 @@ def read_line(file = 'dd.txt'):
     lines = f.readlines()
     f.close()
     return ''.join(lines)
-
-

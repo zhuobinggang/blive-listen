@@ -174,7 +174,8 @@ class MyHandler(blivedm.BaseHandler):
         uname = message.uname
         msg = message.msg
         time = get_time_text(':')
-        self.history.append((time,uname,msg))
+        if len(msg) > 2:
+            self.history.append((time,uname,msg))
         print(f'[{time}]{uname}:{msg}')
         say(message.msg)
         # 通过弹幕控制 gpt4all
