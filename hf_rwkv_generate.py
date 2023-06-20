@@ -122,7 +122,7 @@ class PIPELINE():
         out_str = out_str.replace(self.prefix, '').strip()
         return out_str
 
-    def finetune(self, ctx, answer, token_count=100, args=PIPELINE_ARGS(), callback=None, state=None):
+    def finetune(self, ctx, answer, args=PIPELINE_ARGS(), callback=None, state=None):
         all_tokens = []
         out_last = 0
         out_str = ''
@@ -134,7 +134,7 @@ class PIPELINE():
                 # chunk_len处截断，取hn
                 # out, state = self.model.forward(tokens[:args.chunk_len], state)
                 out = self.model(input_ids = torch.LongTensor([tokens[:args.chunk_len]]), state = state, use_cache = True)
-                state = out.state
+                state = [item.clone().detach() for item in out.state] # NOTE: 试试能不能
                 out = out.logits[0, -1]
                 tokens = tokens[args.chunk_len:]
         # 计算loss

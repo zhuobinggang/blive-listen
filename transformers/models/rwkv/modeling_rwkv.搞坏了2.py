@@ -128,7 +128,9 @@ class RwkvLinearAttention(torch.autograd.Function):
         value = value.contiguous()
         # The CUDA kernel will fill this tensor.
         output = torch.empty_like(key, memory_format=torch.contiguous_format)
-        if return_state or state is not None:
+        # if return_state or state is not None: # 开了True之后会进到这里来
+        # NOTE: taku摸改
+        if return_state: # 开了True之后会进到这里来
             if state is None:
                 state = torch.zeros(
                     batch_size,
@@ -147,15 +149,26 @@ class RwkvLinearAttention(torch.autograd.Function):
                 forward_func = rwkv_cuda_kernel.forward_with_state
             forward_func(time_decay, time_first, key, value, output, state)
         else:
-            forward_func = rwkv_cuda_kernel.forward_bf16 if key.dtype == torch.bfloat16 else rwkv_cuda_kernel.forward
-            forward_func(time_decay, time_first, key, value, output)
+            if state is not None:
+                # NOTE: taku摸改
+                print('只有在最初的时候才进来')
+                state = torch.cat([s.unsqueeze(2) for s in state], dim=2).contiguous()
+                if key.dtype == torch.bfloat16:
+                    forward_func = rwkv_cuda_kernel.forward_with_state_bf16
+                else:
+                    forward_func = rwkv_cuda_kernel.forward_with_state
+                forward_func(time_decay, time_first, key, value, output, state)
+                state = None
+            else:
+                forward_func = rwkv_cuda_kernel.forward_bf16 if key.dtype == torch.bfloat16 else rwkv_cuda_kernel.forward
+                forward_func(time_decay, time_first, key, value, output)
 
         ctx.save_for_backward(time_decay, time_first, key, value, output)
 
         if state is not None:
-            state = [s.squeeze(2) for s in torch.chunk(state, 3, dim=2)]
+            state_copy = [s.squeeze(2) for s in torch.chunk(state, 3, dim=2)]
 
-        return output.to(ctx.input_dtype), state
+        return output.to(ctx.input_dtype), state_copy
 
     @staticmethod
     # g stands for grad
@@ -205,17 +218,14 @@ def rwkv_linear_attention_cpu(time_decay, time_first, key, value, state=None, re
     _, seq_length, _ = key.size()
     output = torch.zeros_like(key)
 
-    if state is None:
-        #print('不复制') # Finetune如果state和use_chache都为None的话会进入这里, 所以设置为0是好的
+    if state is None: # 所以在训练的时候是每一层都重新生成的
+        print('不复制') # 只有state = None & use_cache = False的时候才会进到这里, 这是正常的
         num_state = torch.zeros_like(key[:, 0], dtype=torch.float32)
         den_state = torch.zeros_like(key[:, 0], dtype=torch.float32)
         max_state = torch.zeros_like(key[:, 0], dtype=torch.float32) - 1e38
-    else:
-        # print('复制') # generate只会进入这里，这有点奇怪，因为好像state已经被创建好了一样，确实，RwkvModel已经搞定了
-        num_state, den_state, max_state = state
-        num_state = num_state.clone().detach()
-        den_state = den_state.clone().detach()
-        max_state = max_state.clone().detach()
+    else: # TODO: 影响其3, num_state, den_state, max_state从state取
+        print('复制state内容')
+        num_state, den_state, max_state = state # NOTE: 我认为重点是这里，因为要线性注意
     # For numerical stability
     #    real_numerator_state = num_state * torch.exp(max_state)
     #    real_denominator_state = den_state * torch.exp(max_state)
@@ -223,8 +233,8 @@ def rwkv_linear_attention_cpu(time_decay, time_first, key, value, state=None, re
     time_decay = -torch.exp(time_decay)
 
     for current_index in range(seq_length):
-        current_key = key[:, current_index].float()
-        current_value = value[:, current_index]
+        current_key = key[:, current_index].float() # 复制
+        current_value = value[:, current_index] # 复制
 
         # wkv computation at time t
         max_for_output = torch.maximum(max_state, current_key + time_first)
@@ -242,9 +252,13 @@ def rwkv_linear_attention_cpu(time_decay, time_first, key, value, state=None, re
         den_state = e1 * den_state + e2
         max_state = max_for_state
 
-    if return_state or state is not None:
+    # if return_state or state is not None:
+    #    state = [num_state, den_state, max_state]
+    # NOTE: taku摸改
+    if return_state:
         state = [num_state, den_state, max_state]
-
+    else:
+        state = None # 可是我重置了为什么……
     return output, state
 
 
@@ -253,6 +267,9 @@ def rwkv_linear_attention(time_decay, time_first, key, value, state=None, return
     # Launching the CUDA kernel for just one token will actually be slower (there is no for loop in the CPU version
     # in this case).
     one_token = key.size(1) == 1
+    #if state: # taku摸改
+        #state = [item.clone() for item in state]
+    # NOTE: 这里如果克隆的话…… 每一层block用的都是副本的state
     if rwkv_cuda_kernel is None or no_cuda or one_token:
         return rwkv_linear_attention_cpu(time_decay, time_first, key, value, state=state, return_state=return_state)
     else:
@@ -292,12 +309,12 @@ class RwkvSelfAttention(nn.Module):
     # TODO: maybe jit, otherwise move inside forward
     def extract_key_value(self, hidden, state=None):
         # Mix hidden with the previous timestep to produce key, value, receptance
-        if hidden.size(1) == 1 and state is not None:
+        if hidden.size(1) == 1 and state is not None: # 这是推理的时候用的
             shifted = state[1][:, :, self.layer_id]
         else:
             shifted = self.time_shift(hidden)
-            if state is not None:
-                shifted[:, 0] = state[1][:, :, self.layer_id]
+            if state is not None: # TODO: 影响其1
+                shifted[:, 0] = state[1][:, :, self.layer_id] # emmm，不过这个是复制所以下边没关系
         key = hidden * self.time_mix_key + shifted * (1 - self.time_mix_key)
         value = hidden * self.time_mix_value + shifted * (1 - self.time_mix_value)
         receptance = hidden * self.time_mix_receptance + shifted * (1 - self.time_mix_receptance)
@@ -305,14 +322,16 @@ class RwkvSelfAttention(nn.Module):
         key = self.key(key)
         value = self.value(value)
         receptance = torch.sigmoid(self.receptance(receptance))
-        if state is not None:
-            state[1][:, :, self.layer_id] = hidden[:, -1]
+        if state is not None: # TODO: 影响其2
+            state[1][:, :, self.layer_id] = hidden[:, -1] # emmm, NOTE: 这里改了state，而且是很脏那种
         return receptance, key, value, state
 
     def forward(self, hidden, state=None, use_cache=False):
+        # NOTE: 这里改了state，而且是很脏那种
+        # 前提是存在state的话，不存在的话，就是非常干净的
         receptance, key, value, state = self.extract_key_value(hidden, state=state)
-        layer_state = tuple(s[:, :, self.layer_id] for s in state[2:]) if state is not None else None
-        rwkv, layer_state = rwkv_linear_attention(
+        layer_state = tuple(s[:, :, self.layer_id] for s in state[2:]) if state is not None else None # layer_state是2层之后的state，数据类型都是float32
+        rwkv, layer_state = rwkv_linear_attention( # 又没有什么办法保留但是清空,,
             self.time_decay,
             self.time_first,
             key,
@@ -322,7 +341,7 @@ class RwkvSelfAttention(nn.Module):
         )
 
         if layer_state is not None:
-            state[2][:, :, self.layer_id] = layer_state[0]
+            state[2][:, :, self.layer_id] = layer_state[0] # emmm
             state[3][:, :, self.layer_id] = layer_state[1]
             state[4][:, :, self.layer_id] = layer_state[2]
 
@@ -348,10 +367,10 @@ class RwkvFeedForward(nn.Module):
         self.value = nn.Linear(intermediate_size, hidden_size, bias=False)
 
     def forward(self, hidden, state=None):
-        if hidden.size(1) == 1 and state is not None:
-            shifted = state[0][:, :, self.layer_id]
+        if hidden.size(1) == 1 and state is not None: # ??这是提供state以生成下一个token的时候？
+            shifted = state[0][:, :, self.layer_id]# print('提供state以生成下一个token, 意思是训练时候不能用')
         else:
-            shifted = self.time_shift(hidden)
+            shifted = self.time_shift(hidden) 
             if state is not None:
                 shifted[:, 0] = state[0][:, :, self.layer_id]
         key = hidden * self.time_mix_key + shifted * (1 - self.time_mix_key)
@@ -382,6 +401,8 @@ class RwkvBlock(nn.Module):
         self.attention = RwkvSelfAttention(config, layer_id)
         self.feed_forward = RwkvFeedForward(config, layer_id)
 
+    # hidden: (batch = 1, seq_len, 2560)
+    # state: (5, batch = 1, 2560, layers = 32), 无关seq_len
     def forward(self, hidden, state=None, use_cache=False, output_attentions=False):
         # NOTE: taku魔改
         if True:
@@ -395,12 +416,11 @@ class RwkvBlock(nn.Module):
                 hidden = hidden.cpu()
                 if state is not None:
                     state = [item.cpu() for item in state]
-
         if self.layer_id == 0:
-            hidden = self.pre_ln(hidden)
+            hidden = self.pre_ln(hidden) # 初始的hidden就是input_embdding
 
         attention, state = self.attention(self.ln1(hidden), state=state, use_cache=use_cache)
-        hidden = hidden + attention
+        hidden = hidden + attention # 直接叠加, 说明attention也是(batch, seq_len, 2560)
 
         feed_forward, state = self.feed_forward(self.ln2(hidden), state=state)
         hidden = hidden + feed_forward
@@ -665,26 +685,26 @@ class RwkvModel(RwkvPreTrainedModel):
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         if inputs_embeds is None:
-            inputs_embeds = self.embeddings(input_ids)
+            inputs_embeds = self.embeddings(input_ids) # 1. 获取inputs_embeds = (batch, seq_len, 2560)
 
-        if use_cache and state is None:
-            shape = (inputs_embeds.size(0), self.config.hidden_size, self.config.num_hidden_layers)
-            state = [
-                torch.zeros(
-                    *shape, dtype=inputs_embeds.dtype if i <= 1 else torch.float32, device=inputs_embeds.device
-                )
-                for i in range(5)
-            ]
+        if use_cache and state is None: # 如果没有state的话，准备一下
+            shape = (inputs_embeds.size(0), self.config.hidden_size, self.config.num_hidden_layers) # batch, 2560, 32
+            state = [ torch.zeros( *shape, dtype=inputs_embeds.dtype if i <= 1 else torch.float32, device=inputs_embeds.device) for i in range(5) ] # 5个state里边，第一和第二个的数据类型等同于input_emb的数据类型，可能是没那么重要, 可以变成bf16之类的 所以结果是(5, batch, 2560, 32)
             state[4] -= 1e30
 
-        hidden_states = inputs_embeds
+        hidden_states = inputs_embeds # 注意，初始hidden_states就等于input_emb
 
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
-        for idx, block in enumerate(self.blocks):
-            hidden_states, state, attentions = block(
-                hidden_states, state=state, use_cache=use_cache, output_attentions=output_attentions
-            )
+        for idx, block in enumerate(self.blocks): # 2. 循环32个block
+            # taku摸改
+            #state_old = [item.clone() for item in state]
+            hidden_states, state, attentions = block( hidden_states, state=state, use_cache=use_cache, output_attentions=output_attentions)
+            # NOTE: 事实证明 1)每个block只改于自己那层的state 2)state是全局共享的，指针的内容会被改掉
+            # NOTE: 可是，不带state + use_cache = False的微调是正常运行的，不带state的情况究竟变了什么东西
+            # for i in range(len(self.blocks)):
+            #     print(f'{idx}.{i}.0: {torch.equal(state_old[0][:, :, i], state[0][:, :, i])}')
+            #     print(f'{idx}.{i}.4: {torch.equal(state_old[4][:, :, i], state[4][:, :, i])}')
             if (
                 self.layers_are_rescaled
                 and self.config.rescale_every > 0

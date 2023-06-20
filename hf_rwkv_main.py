@@ -9,10 +9,13 @@ from hf_rwkv_generate import PIPELINE
 def get_model():
     print('taku的大脑加载中...')
     output_dir = '/home/taku/research/LANGUAGE_MODELS/huggingface_rwkv'
-    tokenizer = PreTrainedTokenizerFast.from_pretrained(output_dir)
-    model = RwkvForCausalLM.from_pretrained(output_dir)
+    # model = RwkvForCausalLM.from_pretrained(output_dir)
+    # tokenizer = PreTrainedTokenizerFast.from_pretrained(output_dir)
+    model = RwkvForCausalLM.from_pretrained("sgugger/rwkv-430M-pile")
+    tokenizer = AutoTokenizer.from_pretrained("sgugger/rwkv-430M-pile")
     opter = torch.optim.SGD(model.parameters(), lr=1e-5, momentum=0.9)
-    model.rwkv.blocks[23:-1].cuda()
+    # model.rwkv.blocks[23:-1].cuda()
+    model.rwkv.blocks[15:-1].cuda()
     model.train()
     print('taku的大脑加载结束...')
     # input_ids = tokenizer('日本的首都是', return_tensors='pt')['input_ids']

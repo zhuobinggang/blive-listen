@@ -6,9 +6,11 @@ import blivedm
 from taku_utils import say, cyan, magenta, red, get_time_text, yellow
 # from gpt4all import send, send_rwkv_chat_dialogue, MODELS
 # from taku_rwkv import send_rwkv_chat_dialogue, MODELS
-from hf_rwkv_main import send_rwkv_chat_dialogue, send, finetune, save as save_model
+from hf_rwkv_main import send_rwkv_chat_dialogue, finetune, save as save_model
 from flower import Flower
 import numpy as np
+
+AI_OFFLINE = True
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -99,7 +101,10 @@ class MyHandler(blivedm.BaseHandler):
         self.model_index = 3
         self.dialogue_hist = {}
         # 花花
-        self.flower = Flower()
+        if not AI_OFFLINE:
+            self.flower = Flower()
+        else:
+            self.flower = None
 
     def history_print(self):
         for time,uname,msg in self.history[-20:]:
@@ -144,9 +149,10 @@ class MyHandler(blivedm.BaseHandler):
 
     async def _on_heartbeat(self, client: blivedm.BLiveClient, message: blivedm.HeartbeatMessage):
         #print(f'[{client.room_id}] 当前人气值：{message.popularity}')
-        if self.flower is not None and self.flower.need_water():
-            msg, uname = self.get_random_sentence_and_uname()
-            self.flower.water(msg, uname)
+        if not AI_OFFLINE:
+            if self.flower and self.flower.need_water():
+                msg, uname = self.get_random_sentence_and_uname()
+                self.flower.water(msg, uname)
 
     def record_start(self, uname):
         cyan('{self.prefix()}: 开始记录弹幕片段以组合成完整请求...结束并提问请输入"结束"')
@@ -177,6 +183,8 @@ class MyHandler(blivedm.BaseHandler):
                 self.message_dict[uname]['lst'].append(msg)
 
     def ask(self, prompt, uname = None):
+        if AI_OFFLINE:
+            return '系统升级，模型禁闭中...'
         if self.model_index == 3:
             if uname not in self.dialogue_hist:
                 self.dialogue_hist[uname] = []
@@ -233,7 +241,9 @@ class MyHandler(blivedm.BaseHandler):
                 cyan(f'{self.prefix()}: {response_txt}\n')
                 say(response_txt)
             elif head == '你要说':
-                if len(prompt) < 3:
+                if AI_OFFLINE:
+                    red(f'模型禁闭中')
+                elif len(prompt) < 3:
                     red(f'字数太少了，不学了')
                 elif uname not in self.dialogue_hist:
                     red(f'你还没有对话记录！')
@@ -252,7 +262,7 @@ class MyHandler(blivedm.BaseHandler):
                 self.history_print()
             elif head == '对话':
                 self.dialogue_history_print(uname)
-            elif head == '花花':
+            elif head == '花花' and self.flower:
                 self.flower.show()
         self.maybe_record(uname, message.msg)
         # 判断是我的情况
@@ -264,7 +274,10 @@ class MyHandler(blivedm.BaseHandler):
             elif head == '保存':
                 self.write_history()
             elif head == '保存模型':
-                save_model()
+                if AI_OFFLINE:
+                    red('模型禁闭中')
+                else:
+                    save_model()
 
     async def _on_gift(self, client: blivedm.BLiveClient, message: blivedm.GiftMessage):
         text = f'谢谢{message.uname}赠送{message.num}个{message.gift_name}!'
