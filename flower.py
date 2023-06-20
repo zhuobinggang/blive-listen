@@ -1,6 +1,6 @@
 STATUS = ['悲伤', '幸福', '快乐', '冷酷', '热情', '疯狂', '抽象']
 EXTRA = '虚无'
-from taku_rwkv import send_rwkv_chat_dialogue
+from hf_rwkv_main import send_rwkv_chat_dialogue
 from taku_utils import say, cyan, magenta, red, get_time_text, yellow
 from datetime import datetime
 

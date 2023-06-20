@@ -13,6 +13,22 @@ def get_chinese_prompt_init():
     init_prompt = f'The following is a coherent verbose detailed conversation between a Chinese girl named {bot} and her friend {user}. \n{bot} is very intelligent, creative and friendly. \n{bot} likes to tell {user} a lot about herself and her opinions. \n{bot} usually gives {user} kind, helpful and informative advices.\n\n' 
     return init_prompt, user, bot
 
+@lru_cache()
+def get_chinese_bad_prompt_init():
+    user = "Bob"
+    bot = "Alice"
+    init_prompt = f"The following is a coherent verbose detailed conversation between a Chinese girl named {bot} and her friend {user}. \n{bot} is a very smart but mean girl who is hostile towards {user}. \n{bot} don't likes to tell {user} a lot about herself and her opinions. \n{bot}'s favorite thing to do is to make fun of {user}.\n\n"
+    return init_prompt, user, bot
+
+
+@lru_cache()
+def get_chinese_bad_prompt_init2():
+    user = "Bob"
+    bot = "Alice"
+    init_prompt = f"以下是{user}和{bot}之间的对话。\n{bot}是一个聪明但是刻薄的女孩子。\n{bot}很讨厌{user}所以不愿意和他聊天。\n{bot}看不起{user}所以经常讽刺他。\n\n"
+    return init_prompt, user, bot
+
+
 
 @lru_cache()
 def get_jpa_prompt_init():
@@ -32,7 +48,8 @@ def compose_prompt(prompt, dialogues, prompt_getter = get_chinese_prompt_init):
     return txt
 
 def get_chinese_prompt(txt, dialogues):
-    prompt = compose_prompt(txt, dialogues, get_chinese_prompt_init)
+    # prompt = compose_prompt(txt, dialogues, get_chinese_prompt_init)
+    prompt = compose_prompt(txt, dialogues, get_chinese_bad_prompt_init2)
     return prompt
 
 def get_jpa_prompt(txt, dialogues):
