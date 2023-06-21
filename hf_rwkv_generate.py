@@ -17,13 +17,15 @@ class PIPELINE_ARGS():
         self.chunk_len = chunk_len # split input into chunks to save VRAM (shorter -> slower)
 
 class PIPELINE():
-    def __init__(self, model, tokenizer, opter = None, stop=f"\nBob"):
+    def __init__(self, model, tokenizer, opter = None, stop=f"\nBob", accumulate_loss_until = 1):
         self.model = model
         self.stop = stop
         self.prefix = 'Alice:'
         self.tokenizer = tokenizer
         self.opter = opter
         self.is_cuda = next(model.parameters()).device.type == 'cuda'
+        self.accumulate_loss_until = accumulate_loss_until
+        self.accumulate_loss_count = 0
 
     def refine_context(self, context):
         context = context.strip().split('\n')
@@ -153,16 +155,35 @@ class PIPELINE():
         label_ids = self.get_input_ids(self.encode(answer))
         assert state is not None
         out = self.model(input_ids = label_ids, labels = label_ids, state = state, use_cache = True)
-        self.opter.zero_grad()
-        out.loss.backward()
-        self.opter.step()
+        # acc loss
+        self.backward(out.loss)
         return out.loss.item()
 
-    def finetune_self_instruct(self, ctx):
-        label_ids = self.tokenizer(ctx, return_tensors='pt')['input_ids']
-        out = self.model(input_ids = label_ids, labels = label_ids, use_cache = True)
-        self.opter.zero_grad()
-        out.loss.backward()
+    def backward(self, loss):
+        if self.accumulate_loss_count == 0:
+            self.opter.zero_grad()
+        loss.backward()
+        self.accumulate_loss_count = self.accumulate_loss_count + 1
+        if self.accumulate_loss_count == self.accumulate_loss_until:
+            print(f'优化器step')
+            self.opter.step()
+            self.accumulate_loss_count = 0
+        else:
+            print(f'叠加loss, 次数: {self.accumulate_loss_count}')
+
+    def last_step(self):
+        if self.accumulate_loss_count == 0:
+            self.opter.zero_grad()
+            return
+        print(f'优化器step')
         self.opter.step()
+        self.opter.zero_grad()
+        self.accumulate_loss_count = 0
+        print('步数清零')
+
+    def finetune_self_instruct(self, ctx):
+        label_ids = self.get_input_ids(self.encode(ctx))
+        out = self.model(input_ids = label_ids, labels = label_ids, use_cache = True)
+        self.backward(out.loss)
         return out.loss.item()
 

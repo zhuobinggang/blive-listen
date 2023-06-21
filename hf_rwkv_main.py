@@ -5,9 +5,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedTokenize
 from datetime import datetime
 from hf_rwkv_generate import PIPELINE
 
-def get_small_model(finetuned=True, train = False):
+@lru_cache(maxsize=None)
+def get_small_model(finetuned=True, train = False, output_dir = None):
     pretrained_dir = "RWKV/rwkv-4-169m-pile"
-    output_dir = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/rwkv4_169m.tch' 
+    if output_dir is None:
+        output_dir = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/rwkv4_169m.tch'
+    print('taku的大脑加载中...')
     state_dict = load_checkpoint(output_dir) if finetuned else None
     model = RwkvForCausalLM.from_pretrained(pretrained_dir, state_dict = state_dict, torch_dtype=torch.float16).to(0)
     tokenizer = AutoTokenizer.from_pretrained(pretrained_dir)
@@ -15,9 +18,28 @@ def get_small_model(finetuned=True, train = False):
         _ = model.train()
     opter = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=2e-5, momentum=0.9) if train else None
     pipeline = PIPELINE(model, tokenizer, opter)
+    pipeline.accumulate_loss_until = 4 # 优化步长
     torch.cuda.empty_cache()
+    print('taku的大脑加载结束...')
     return pipeline
 
+@lru_cache(maxsize=None)
+def get_middle_model(finetuned=True, train = False, output_dir = None):
+    pretrained_dir = "RWKV/rwkv-4-169m-pile"
+    if output_dir is None:
+        output_dir = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/rwkv4_169m.tch'
+    print('taku的大脑加载中...')
+    state_dict = load_checkpoint(output_dir) if finetuned else None
+    model = RwkvForCausalLM.from_pretrained(pretrained_dir, state_dict = state_dict, torch_dtype=torch.float16).to(0)
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_dir)
+    if train:
+        _ = model.train()
+    opter = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=2e-5, momentum=0.9) if train else None
+    pipeline = PIPELINE(model, tokenizer, opter)
+    pipeline.accumulate_loss_until = 4 # 优化步长
+    torch.cuda.empty_cache()
+    print('taku的大脑加载结束...')
+    return pipeline
 
 @lru_cache(maxsize=None)
 def get_model(finetuned=True, train = True):
