@@ -5,37 +5,63 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedTokenize
 from datetime import datetime
 from hf_rwkv_generate import PIPELINE
 
+def get_small_model(finetuned=True, train = False):
+    pretrained_dir = "RWKV/rwkv-4-169m-pile"
+    output_dir = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/rwkv4_169m.tch' 
+    state_dict = load_checkpoint(output_dir) if finetuned else None
+    model = RwkvForCausalLM.from_pretrained(pretrained_dir, state_dict = state_dict, torch_dtype=torch.float16).to(0)
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_dir)
+    if train:
+        _ = model.train()
+    opter = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=2e-5, momentum=0.9) if train else None
+    pipeline = PIPELINE(model, tokenizer, opter)
+    torch.cuda.empty_cache()
+    return pipeline
+
+
 @lru_cache(maxsize=None)
-def get_model():
+def get_model(finetuned=True, train = True):
+    pretrained_dir = '/home/taku/research/LANGUAGE_MODELS/huggingface_rwkv/'
     print('taku的大脑加载中...')
-    output_dir = '/home/taku/research/LANGUAGE_MODELS/huggingface_rwkv'
-    # model = RwkvForCausalLM.from_pretrained(output_dir)
-    # tokenizer = PreTrainedTokenizerFast.from_pretrained(output_dir)
-    model = RwkvForCausalLM.from_pretrained("sgugger/rwkv-430M-pile")
-    tokenizer = AutoTokenizer.from_pretrained("sgugger/rwkv-430M-pile")
-    opter = torch.optim.SGD(model.parameters(), lr=1e-5, momentum=0.9)
-    # model.rwkv.blocks[23:-1].cuda()
-    model.rwkv.blocks[15:-1].cuda()
-    model.train()
+    state_dict = load_checkpoint() if finetuned else None
+    model = RwkvForCausalLM.from_pretrained(pretrained_dir, state_dict = state_dict)
+    # model = model.to(torch.bfloat16)
+    tokenizer = PreTrainedTokenizerFast.from_pretrained(pretrained_dir)
+    # model = RwkvForCausalLM.from_pretrained("sgugger/rwkv-430M-pile")
+    # tokenizer = AutoTokenizer.from_pretrained("sgugger/rwkv-430M-pile")
     print('taku的大脑加载结束...')
+    _ = model.rwkv.blocks[-6:].cuda()
+    _ = model.rwkv.ln_out.cuda()
+    _ = model.head.cuda()
+    if train:
+        _ = model.train()
+        # Freeze some layer
+        for layer in model.rwkv.blocks[:-6]:
+            _ = layer.requires_grad_(False)
+        _ = model.rwkv.embeddings.requires_grad_(False)
+    opter = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=2e-5, momentum=0.9) if train else None
+    print('开始工作...')
     # input_ids = tokenizer('日本的首都是', return_tensors='pt')['input_ids']
     # out = model(input_ids = input_ids, labels = input_ids, state = None, use_cache = True)
     pipeline = PIPELINE(model, tokenizer, opter)
+    torch.cuda.empty_cache()
     return model, tokenizer, opter, pipeline
 
 @torch.no_grad()
-def send(ctx, count = 80):
+def send(ctx, count = 120):
     _, _, _, pipeline = get_model()
     return pipeline.generate(ctx, token_count = count, state = None)
 
 def finetune(output_txt, dialogues=[]):
     ask, answer = dialogues.pop()
-    print(f'开始调教，当用户说"{ask}"的时候，我不该说"{answer}"，而应该说"{output_txt}"')
+    self_instruct = f'\nAlice: 当用户说"{ask}"的时候，我不该说"{answer}"，而应该说"{output_txt}"'
+    print(self_instruct.replace('\nAlice: ', ''))
+    _, _, _, pipeline = get_model()
+    loss1 = pipeline.finetune_self_instruct(self_instruct)
     ctx = get_ctx_by_dialogues(ask, dialogues)
     # print(f'LOG context: \n{ctx}\n')
-    _, _, _, pipeline = get_model()
-    loss = pipeline.finetune(ctx, answer)
-    print(f'调教结束, 损失值: {loss}')
+    loss2 = pipeline.finetune(ctx, answer)
+    print(f'调教结束, 损失值: {round(loss1, 3)} + {round(loss2,3)}')
 
 
 def save():
@@ -43,9 +69,16 @@ def save():
     save_checkpoint(model)
 
 def save_checkpoint(model, PATH = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/dd.tch'):
+    model = model.half()
     torch.save({
             'model_state_dict': model.state_dict(),
             }, PATH)
+    torch.cuda.empty_cache()
+
+def load_checkpoint(path = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/dd.tch'):
+    cp = torch.load(path)
+    return cp['model_state_dict']
+
 
 def get_ctx_by_dialogues(prompt, dialogues = []):
     ctx = 'Bob和Alice在说话。Alice不喜欢Bob，所以说话比较刻薄。\n\n'

@@ -17,13 +17,13 @@ class PIPELINE_ARGS():
         self.chunk_len = chunk_len # split input into chunks to save VRAM (shorter -> slower)
 
 class PIPELINE():
-    def __init__(self, model, tokenizer, opter, stop=f"\nBob"):
+    def __init__(self, model, tokenizer, opter = None, stop=f"\nBob"):
         self.model = model
         self.stop = stop
         self.prefix = 'Alice:'
         self.tokenizer = tokenizer
         self.opter = opter
-
+        self.is_cuda = next(model.parameters()).device.type == 'cuda'
 
     def refine_context(self, context):
         context = context.strip().split('\n')
@@ -87,7 +87,8 @@ class PIPELINE():
             while len(tokens) > 0:
                 # chunk_len处截断，取hn
                 # out, state = self.model.forward(tokens[:args.chunk_len], state)
-                out = self.model(input_ids = torch.LongTensor([tokens[:args.chunk_len]]), state = state, use_cache = True)
+                input_ids = self.get_input_ids(tokens[:args.chunk_len])
+                out = self.model(input_ids = input_ids, state = state, use_cache = True)
                 state = out.state
                 out = out.logits[0, -1]
                 tokens = tokens[args.chunk_len:]
@@ -122,7 +123,17 @@ class PIPELINE():
         out_str = out_str.replace(self.prefix, '').strip()
         return out_str
 
+    def get_input_ids(self, ctx):
+        input_ids = torch.LongTensor([ctx])
+        if self.is_cuda:
+            input_ids = input_ids.to(0)
+        return input_ids
+        
+
     def finetune(self, ctx, answer, args=PIPELINE_ARGS(), callback=None, state=None):
+        if not self.opter:
+            print('没有optimizer，不能微调')
+            return None
         all_tokens = []
         out_last = 0
         out_str = ''
@@ -133,12 +144,13 @@ class PIPELINE():
             while len(tokens) > 0:
                 # chunk_len处截断，取hn
                 # out, state = self.model.forward(tokens[:args.chunk_len], state)
-                out = self.model(input_ids = torch.LongTensor([tokens[:args.chunk_len]]), state = state, use_cache = True)
+                input_ids = self.get_input_ids(tokens[:args.chunk_len])
+                out = self.model(input_ids = input_ids, state = state, use_cache = True)
                 state = [item.clone().detach() for item in out.state] # NOTE: 试试能不能
                 out = out.logits[0, -1]
                 tokens = tokens[args.chunk_len:]
         # 计算loss
-        label_ids = self.tokenizer(answer, return_tensors='pt')['input_ids']
+        label_ids = self.get_input_ids(self.encode(answer))
         assert state is not None
         out = self.model(input_ids = label_ids, labels = label_ids, state = state, use_cache = True)
         self.opter.zero_grad()
@@ -146,4 +158,11 @@ class PIPELINE():
         self.opter.step()
         return out.loss.item()
 
+    def finetune_self_instruct(self, ctx):
+        label_ids = self.tokenizer(ctx, return_tensors='pt')['input_ids']
+        out = self.model(input_ids = label_ids, labels = label_ids, use_cache = True)
+        self.opter.zero_grad()
+        out.loss.backward()
+        self.opter.step()
+        return out.loss.item()
 

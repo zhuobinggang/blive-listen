@@ -9,6 +9,7 @@ from taku_utils import say, cyan, magenta, red, get_time_text, yellow
 from hf_rwkv_main import send_rwkv_chat_dialogue, finetune, save as save_model
 from flower import Flower
 import numpy as np
+from datetime import datetime
 
 AI_OFFLINE = True
 
@@ -102,9 +103,12 @@ class MyHandler(blivedm.BaseHandler):
         self.dialogue_hist = {}
         # 花花
         if not AI_OFFLINE:
-            self.flower = Flower()
+            # self.flower = Flower()
+            self.flower = None
         else:
             self.flower = None
+        # 自言自语说话模块
+        self.last_say_time = datetime.min
 
     def history_print(self):
         for time,uname,msg in self.history[-20:]:
@@ -153,6 +157,26 @@ class MyHandler(blivedm.BaseHandler):
             if self.flower and self.flower.need_water():
                 msg, uname = self.get_random_sentence_and_uname()
                 self.flower.water(msg, uname)
+            # 自动挑选一个人回复?
+            if self.too_long_no_say():
+                print('...')
+                if len(self.history) > 0:
+                    self.update_last_say_time()
+                    time, uname, msg = self.history[-1]
+                    response_txt = self.ask(msg, uname)
+                    cyan(f'{self.prefix()}: {response_txt}\n')
+                    say(response_txt)
+
+    def too_long_no_say(self):
+        now = datetime.now()
+        delta = now - self.last_say_time
+        if delta.seconds > (10 * 60): # 10分钟浇水一次
+            return True
+        else:
+            return False
+
+    def update_last_say_time(self):
+        self.last_say_time = datetime.now()
 
     def record_start(self, uname):
         cyan('{self.prefix()}: 开始记录弹幕片段以组合成完整请求...结束并提问请输入"结束"')

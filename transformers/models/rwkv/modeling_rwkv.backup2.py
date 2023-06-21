@@ -62,7 +62,6 @@ rwkv_cuda_kernel = None
 
 
 def load_wkv_cuda_kernel(context_length):
-    return # taku摸改
     from torch.utils.cpp_extension import load as load_kernel
 
     global rwkv_cuda_kernel
