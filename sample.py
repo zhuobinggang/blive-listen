@@ -11,7 +11,7 @@ from flower import Flower
 import numpy as np
 from datetime import datetime
 
-AI_OFFLINE = True
+AI_OFFLINE = False
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
@@ -161,10 +161,11 @@ class MyHandler(blivedm.BaseHandler):
             if self.too_long_no_say():
                 print('...')
                 if len(self.history) > 0:
+                    random_idx = np.random.randint(len(self.history))
+                    time,uname,msg = self.history[random_idx]
+                    response_txt = send_rwkv_chat_dialogue(msg, [])
                     self.update_last_say_time()
-                    time, uname, msg = self.history[-1]
-                    response_txt = self.ask(msg, uname)
-                    cyan(f'{self.prefix()}: {response_txt}\n')
+                    cyan(f'{uname}: {msg}\n{self.prefix()}: {response_txt}\n')
                     say(response_txt)
 
     def too_long_no_say(self):

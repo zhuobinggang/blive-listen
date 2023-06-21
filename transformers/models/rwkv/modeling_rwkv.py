@@ -62,6 +62,7 @@ rwkv_cuda_kernel = None
 
 
 def load_wkv_cuda_kernel(context_length):
+    print('不使用cuda核')
     return # taku摸改
     from torch.utils.cpp_extension import load as load_kernel
 
@@ -389,13 +390,13 @@ class RwkvBlock(nn.Module):
             p = next(self.parameters())
             if p.device.type == 'cuda':
                 # print('冲冲冲')
-                hidden = hidden.cuda()
+                hidden = hidden.to(torch.float16).cuda()
                 if state is not None:
-                    state = [item.cuda() for item in state]
+                    state = [item.to(torch.float16).cuda() for item in state]
             else:
-                hidden = hidden.cpu()
+                hidden = hidden.to(torch.float).cpu()
                 if state is not None:
-                    state = [item.cpu() for item in state]
+                    state = [item.to(torch.float).cpu() for item in state]
 
         if self.layer_id == 0:
             hidden = self.pre_ln(hidden)
