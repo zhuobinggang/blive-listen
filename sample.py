@@ -171,7 +171,7 @@ class MyHandler(blivedm.BaseHandler):
     def too_long_no_say(self):
         now = datetime.now()
         delta = now - self.last_say_time
-        if delta.seconds > (10 * 60): # 10分钟浇水一次
+        if delta.seconds > (15 * 60): # 10分钟浇水一次
             return True
         else:
             return False
@@ -218,6 +218,7 @@ class MyHandler(blivedm.BaseHandler):
             small = True if self.model_index == 2 else False
             response_txt = send_rwkv_chat_dialogue(prompt, dialogues)
             self.dialogue_hist[uname].append((prompt, response_txt))
+            self.update_last_say_time()
         elif self.model_index in [1, 2]:
             print('已不再支持')
             # if uname: 

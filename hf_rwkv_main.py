@@ -24,7 +24,7 @@ def get_small_model(finetuned=True, train = False, output_dir = None):
     return pipeline
 
 @lru_cache(maxsize=None)
-def get_model(finetuned=True, train = True, pretrained_dir = '/home/taku/research/LANGUAGE_MODELS/huggingface_rwkv/', checkpoint_dir = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/dd.tch', how_many_blocks_to_finetune = 4):
+def get_model(finetuned=True, train = True, pretrained_dir = '/home/taku/research/LANGUAGE_MODELS/huggingface_rwkv/', checkpoint_dir = '/home/taku/research/LANGUAGE_MODELS/rwkv_finetune/dd.tch', how_many_blocks_to_finetune = 4, accumulate_loss_until = 1):
     print('taku的大脑加载中...')
     state_dict = load_checkpoint(checkpoint_dir) if finetuned else None
     model = RwkvForCausalLM.from_pretrained(pretrained_dir, state_dict = state_dict, torch_dtype=torch.float16)
@@ -49,7 +49,7 @@ def get_model(finetuned=True, train = True, pretrained_dir = '/home/taku/researc
     # input_ids = tokenizer('日本的首都是', return_tensors='pt')['input_ids']
     # out = model(input_ids = input_ids, labels = input_ids, state = None, use_cache = True)
     pipeline = PIPELINE(model, tokenizer, opter)
-    pipeline.accumulate_loss_until = 4
+    pipeline.accumulate_loss_until = accumulate_loss_until
     torch.cuda.empty_cache()
     return model, tokenizer, opter, pipeline
 
