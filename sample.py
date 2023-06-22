@@ -43,9 +43,6 @@ help_message = """
 前面两句是对话历史，最后一句会启动调教
 命令格式: <应该说 你想让AI回答的话>
 注意: 微调大型模型很费力，一时半会看不到成果。
-
-## 花花
-输入<花花>查看花花成长状态。花花每三十分钟随机抽取弹幕进行浇水。
 """
 
 async def main():
@@ -266,7 +263,7 @@ class MyHandler(blivedm.BaseHandler):
                 response_txt = self.ask(prompt, uname)
                 cyan(f'{self.prefix()}: {response_txt}\n')
                 say(response_txt)
-            elif head == '你要说':
+            elif head in ['你要说', '应该说']:
                 if AI_OFFLINE:
                     red(f'模型禁闭中')
                 elif len(prompt) < 3:
