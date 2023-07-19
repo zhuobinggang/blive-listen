@@ -11,7 +11,7 @@ from flower import Flower
 import numpy as np
 from datetime import datetime
 
-AI_OFFLINE = False
+AI_OFFLINE = True
 
 # 直播间ID的取值看直播间URL
 TEST_ROOM_IDS = [
