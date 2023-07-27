@@ -289,7 +289,8 @@ class MyHandler(blivedm.BaseHandler):
                 self.flower.show()
         self.maybe_record(uname, message.msg)
         # 判断是我的情况
-        if uname == 'taku的交错电台':
+        # if uname == 'taku的交错电台':
+        if uname.startswith('t'):
             if head == '切换模型':
                 red(f'切换模型(只对taku的命令生效): 目前切换不了, 只能用最新的')
                 # self.model_index = (self.model_index + 1) % 3
